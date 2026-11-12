@@ -153,6 +153,85 @@ def test_log_is_written(tmp_path):
     assert [r[1] for r in rows[1:]] == [MOVED, FAILED]
 
 
+def test_many_files_parallel(tmp_path):
+    src = tmp_path / "src" / "many"
+    for i in range(60):
+        make_file(src / f"d{i % 7}" / f"f{i}.txt", 100 + i)
+    dest = tmp_path / "backup"
+    m = run([Item(str(src), True, 0)], dest, workers=8, pack=False)
+    assert m.results[str(src)] == MOVED
+    target = dest_path(str(dest), str(src))
+    copied = [os.path.join(r, f) for r, _, fs in os.walk(target) for f in fs]
+    assert len(copied) == 60
+
+
+def test_small_files_are_packed_into_zip(tmp_path):
+    import zipfile
+    src = tmp_path / "src" / "node_stuff"
+    for i in range(30):
+        make_file(src / "lib" / f"m{i}.js", 500 + i, age_days=400)
+    make_file(src / "img" / "logo.png", 2000)
+    (src / "empty").mkdir()
+    dest = tmp_path / "backup"
+    m = run([Item(str(src), True, 0)], dest, pack_min_files=10)
+    assert m.results[str(src)] == MOVED
+    assert "packed 31 files" in m.notes[str(src)]
+    target = dest_path(str(dest), str(src)) + ".zip"
+    assert m.targets[str(src)] == target
+    assert not os.path.exists(target + ".partial")
+    with zipfile.ZipFile(target) as z:
+        names = z.namelist()
+        assert "node_stuff/lib/m0.js" in names
+        assert "node_stuff/empty/" in names
+        assert z.getinfo("node_stuff/img/logo.png").compress_type == zipfile.ZIP_STORED
+        assert z.getinfo("node_stuff/lib/m0.js").file_size == 500
+        assert z.testzip() is None
+    assert not src.exists()
+
+
+def test_few_or_big_files_are_not_packed(tmp_path):
+    src = tmp_path / "src" / "videos"
+    make_file(src / "a.mp4", 3 * MB)
+    make_file(src / "b.mp4", 3 * MB)
+    m = Mover([Item(str(src), True, 0)], str(tmp_path / "b"), pack_min_files=2, pack_max_avg_mb=1)
+    assert not m.should_pack(Item(str(src), True, 0))
+    assert not m.should_pack(Item(str(src), True, 6 * MB, 2))
+    assert m.should_pack(Item(str(src), True, 1000, 2))
+
+
+def test_pack_error_keeps_original(tmp_path, monkeypatch):
+    import zipfile
+    src = tmp_path / "src" / "p"
+    for i in range(5):
+        make_file(src / f"f{i}.txt", 100)
+
+    def broken(self, *a, **k):
+        raise OSError("drive vanished")
+    monkeypatch.setattr(zipfile.ZipFile, "write", broken)
+    dest = tmp_path / "backup"
+    m = run([Item(str(src), True, 0)], dest, pack_min_files=2)
+    assert m.results[str(src)] == FAILED
+    assert (src / "f0.txt").exists()
+    assert not os.path.exists(dest_path(str(dest), str(src)) + ".zip.partial")
+
+
+def test_shell_files_may_differ(tmp_path, monkeypatch):
+    src = tmp_path / "src" / "s"
+    make_file(src / "desktop.ini", 100)
+    make_file(src / "real.txt", 100)
+    real_stat = os.stat
+
+    def fake_stat(p, *a, **k):
+        st = real_stat(p, *a, **k)
+        if "backup" in str(p) and str(p).lower().endswith("desktop.ini"):
+            return os.stat_result((st.st_mode, st.st_ino, st.st_dev, st.st_nlink, st.st_uid, st.st_gid,
+                                   999, st.st_atime, st.st_mtime, st.st_ctime))
+        return st
+    monkeypatch.setattr(os, "stat", fake_stat)
+    m = run([Item(str(src), True, 200)], tmp_path / "backup", pack=False)
+    assert m.results[str(src)] == MOVED
+
+
 @pytest.mark.skipif(os.name != "nt", reason="Windows long paths")
 def test_long_paths(tmp_path):
     deep = tmp_path / "src" / "long"

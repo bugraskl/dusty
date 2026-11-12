@@ -63,8 +63,12 @@ class Config:
     use_access_time: bool = False              # also require "not opened" (needs NTFS last-access)
     delete_after_copy: bool = True
     verify: str = "size"                       # "size" or "hash" (SHA-256)
+    pack_small: bool = True                    # folders of many small files → one .zip (much faster)
+    pack_min_files: int = 200                  # ... when they hold at least this many files
+    pack_max_avg_mb: float = 4.0               # ... and the average file is smaller than this
+    copy_workers: int = 8                      # files copied in parallel
     max_depth: int = 4                         # deepest level offered as a separate row
-    workers: int = 8
+    workers: int = 8                           # scan threads
     language: str = "auto"                     # "auto", "en", "tr"
     excludes: List[str] = field(default_factory=list)       # never touched, including everything inside
     system_names: List[str] = field(default_factory=lambda: list(DEFAULT_SYSTEM_NAMES))
@@ -117,6 +121,8 @@ def load(path: str | None = None) -> Config:
     cfg.days = max(1, cfg.days)
     cfg.max_depth = min(max(1, cfg.max_depth), 8)
     cfg.workers = min(max(1, cfg.workers), 32)
+    cfg.copy_workers = min(max(1, cfg.copy_workers), 32)
+    cfg.pack_min_files = max(1, cfg.pack_min_files)
     return cfg
 
 

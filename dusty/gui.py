@@ -401,13 +401,18 @@ class App:
             warn = t("cache_warn", drive=sysdrive.rstrip("\\"), free=human_size(sys_free))
         delete = self.delete_var.get()
         text = t("confirm_head", n=len(chosen), size=human_size(total), dest=dest)
+        if self.cfg.pack_small:
+            text += t("confirm_pack", n=self.cfg.pack_min_files)
         text += t("confirm_delete") if delete else t("confirm_keep")
         if not messagebox.askyesno(t("confirm_title"), text + warn + t("proceed"),
                                    icon="warning" if delete else "question"):
             return
         self.save_config()
-        items = [Item(c.path, c.is_dir, c.size) for c in sorted(chosen, key=lambda c: c.size)]
-        self.job = Mover(items, dest, delete=delete, verify=self.cfg.verify)
+        items = [Item(c.path, c.is_dir, c.size, c.files) for c in sorted(chosen, key=lambda c: c.size)]
+        cfg = self.cfg
+        self.job = Mover(items, dest, delete=delete, verify=cfg.verify, workers=cfg.copy_workers,
+                         pack=cfg.pack_small, pack_min_files=cfg.pack_min_files,
+                         pack_max_avg_mb=cfg.pack_max_avg_mb)
         threading.Thread(target=self.job.run, daemon=True).start()
         self._lock("move")
         self.progress.stop()
@@ -437,7 +442,7 @@ class App:
         elif self.mode == "move":
             self.progress.config(value=int(1000 * job.done_bytes / max(1, job.total_bytes)))
             if not job.done:
-                phase = t("phase_delete") if job.phase == "delete" else t("phase_copy")
+                phase = t({"delete": "phase_delete", "pack": "phase_pack"}.get(job.phase, "phase_copy"))
                 self.status.config(text=t("progress", done=human_size(job.done_bytes),
                                           total=human_size(job.total_bytes), cur=f"{phase}: {job.current}"))
                 self.root.after(250, self._poll)
@@ -497,13 +502,26 @@ class App:
         workers = tk.StringVar(value=str(self.cfg.workers))
         ttk.Spinbox(frm, from_=1, to=32, width=6, textvariable=workers).grid(row=4, column=1, sticky="w", pady=2)
 
-        ttk.Label(frm, text=t("set_lang")).grid(row=5, column=0, sticky="w")
+        ttk.Label(frm, text=t("set_copy_workers")).grid(row=5, column=0, sticky="w")
+        copy_workers = tk.StringVar(value=str(self.cfg.copy_workers))
+        ttk.Spinbox(frm, from_=1, to=32, width=6, textvariable=copy_workers).grid(
+            row=5, column=1, sticky="w", pady=2)
+
+        pack = tk.BooleanVar(value=self.cfg.pack_small)
+        ttk.Checkbutton(frm, text=t("set_pack"), variable=pack).grid(
+            row=6, column=0, columnspan=2, sticky="w", pady=(8, 2))
+        ttk.Label(frm, text=t("set_pack_min")).grid(row=7, column=0, sticky="w", padx=(22, 0))
+        pack_min = tk.StringVar(value=str(self.cfg.pack_min_files))
+        ttk.Spinbox(frm, from_=10, to=1_000_000, increment=50, width=8, textvariable=pack_min).grid(
+            row=7, column=1, sticky="w", pady=2)
+
+        ttk.Label(frm, text=t("set_lang")).grid(row=8, column=0, sticky="w")
         lang = ttk.Combobox(frm, state="readonly", values=["auto", "en", "tr"], width=8)
         lang.set(self.cfg.language)
-        lang.grid(row=5, column=1, sticky="w", pady=2)
+        lang.grid(row=8, column=1, sticky="w", pady=(8, 2))
 
         ttk.Label(frm, text=t("set_config", p=self.config_path or config_mod.default_path()),
-                  foreground="gray").grid(row=6, column=0, columnspan=2, sticky="w", pady=(10, 0))
+                  foreground="gray").grid(row=9, column=0, columnspan=2, sticky="w", pady=(10, 0))
 
         def save():
             self.cfg.excludes = [ln.strip() for ln in txt.get("1.0", "end").splitlines() if ln.strip()]
@@ -511,8 +529,11 @@ class App:
             try:
                 self.cfg.max_depth = min(8, max(1, int(depth.get())))
                 self.cfg.workers = min(32, max(1, int(workers.get())))
+                self.cfg.copy_workers = min(32, max(1, int(copy_workers.get())))
+                self.cfg.pack_min_files = max(1, int(pack_min.get()))
             except ValueError:
                 pass
+            self.cfg.pack_small = pack.get()
             self.cfg.language = lang.get()
             for c in self.candidates:   # hide rows that are now protected
                 if any(system.is_inside(c.path, e) or system.is_inside(e, c.path) for e in self.cfg.excludes):
@@ -522,7 +543,7 @@ class App:
             self.refresh()
 
         btns = ttk.Frame(frm)
-        btns.grid(row=7, column=0, columnspan=2, sticky="e", pady=(12, 0))
+        btns.grid(row=10, column=0, columnspan=2, sticky="e", pady=(12, 0))
         ttk.Button(btns, text=t("cancel"), command=w.destroy).pack(side="right")
         ttk.Button(btns, text=t("save"), style="Accent.TButton", command=save).pack(side="right", padx=6)
         frm.columnconfigure(1, weight=1)
