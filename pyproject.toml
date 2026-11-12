@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dusty"
+dynamic = ["version"]
+description = "Find what has been gathering dust on your disks, back it up to cloud storage, free up space."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "bugraskl" }]
+keywords = ["disk cleanup", "backup", "google drive", "onedrive", "free space", "tkinter"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Win32 (MS Windows)",
+    "Environment :: X11 Applications",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3",
+    "Topic :: System :: Archiving :: Backup",
+    "Topic :: System :: Filesystems",
+]
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[project.urls]
+Homepage = "https://github.com/bugraskl/dusty"
+Issues = "https://github.com/bugraskl/dusty/issues"
+
+[project.scripts]
+dusty = "dusty.cli:main"
+
+[project.gui-scripts]
+dusty-gui = "dusty.gui:main"
+
+[tool.setuptools]
+packages = ["dusty"]
+
+[tool.setuptools.dynamic]
+version = { attr = "dusty.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
