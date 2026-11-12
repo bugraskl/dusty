@@ -38,6 +38,15 @@ def test_env_override(tmp_path, monkeypatch):
     assert config.default_path() == str(tmp_path / "x.json")
 
 
+def test_portable_exe_keeps_config_next_to_it(tmp_path, monkeypatch):
+    monkeypatch.delenv("DUSTY_CONFIG", raising=False)
+    monkeypatch.setattr(config.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(config.sys, "executable", str(tmp_path / "dusty.exe"))
+    assert config.default_path() == str(tmp_path / config.PORTABLE_NAME)
+    monkeypatch.setattr(config, "_writable", lambda folder: False)
+    assert config.default_path() != str(tmp_path / config.PORTABLE_NAME)
+
+
 def test_translations_have_same_keys():
     en = set(i18n.STRINGS["en"])
     for lang, table in i18n.STRINGS.items():

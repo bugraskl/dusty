@@ -1,0 +1,77 @@
+name: Release
+
+# Push a tag like v1.2.0 (matching dusty/__init__.py) to build the portable dusty.exe
+# and publish it on the Releases page.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Check tag matches version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          version=$(python -c "import dusty; print(dusty.__version__)")
+          test "v$version" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} != v$version"; exit 1; }
+
+      - name: Test
+        run: |
+          python -m pip install -e ".[test]" pyinstaller
+          python -m pytest -q
+
+      - name: Build dusty.exe
+        run: python packaging/build_exe.py
+
+      - name: Smoke test (the exe opens its window)
+        shell: pwsh
+        run: |
+          $env:DUSTY_CONFIG = "$env:RUNNER_TEMP\smoke.json"
+          $env:DUSTY_SELFTEST = "$env:RUNNER_TEMP\selftest.txt"
+          Start-Process dist\dusty.exe | Out-Null
+          foreach ($i in 1..60) { if (Test-Path $env:DUSTY_SELFTEST) { break }; Start-Sleep 1 }
+          Get-Process dusty -ErrorAction SilentlyContinue | Stop-Process -Force
+          if (-not (Test-Path $env:DUSTY_SELFTEST)) { throw "dusty.exe did not open its window" }
+          Get-Content $env:DUSTY_SELFTEST
+
+      - name: Checksum
+        shell: bash
+        run: sha256sum dist/dusty.exe | tee dist/dusty.exe.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dusty-windows
+          path: dist/dusty.exe*
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sum=$(cut -d' ' -f1 dist/dusty.exe.sha256)
+          cat > notes.md <<EOF
+          ## Download
+
+          **[⬇ dusty.exe](https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/dusty.exe)**: Windows 10/11, 64-bit. Portable: no installer, no Python, nothing to set up. Download it and double-click.
+
+          - Settings are saved in \`dusty-config.json\` next to the exe, so you can keep it on a USB stick.
+          - Windows SmartScreen may say *"Windows protected your PC"* because the exe is not code-signed. Click **More info → Run anyway**. The exe is built from this tag by GitHub Actions ([build log](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})).
+          - SHA-256: \`${sum}\`
+
+          On Linux or macOS: \`pip install git+https://github.com/${GITHUB_REPOSITORY}\`, then \`dusty\`.
+
+          EOF
+          gh release create "${GITHUB_REF_NAME}" dist/dusty.exe dist/dusty.exe.sha256 \
+            --title "dusty ${GITHUB_REF_NAME}" --notes-file notes.md --generate-notes --latest

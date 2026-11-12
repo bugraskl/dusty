@@ -48,6 +48,7 @@ class App:
         self.root.title(f"{t('app_title')}   v{__version__}")
         self.root.geometry("1320x780")
         self.root.minsize(900, 480)
+        self._icon()
         self._style()
 
         self.trees: List[Node] = []
@@ -67,6 +68,17 @@ class App:
             self.root.after(400, self.scan)
 
     # ================================================================ layout
+    def _icon(self) -> None:
+        assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+        try:
+            if system.IS_WIN:
+                self.root.iconbitmap(default=os.path.join(assets, "dusty.ico"))
+            else:
+                self._icon_img = tk.PhotoImage(file=os.path.join(assets, "dusty.png"))
+                self.root.iconphoto(True, self._icon_img)
+        except (tk.TclError, OSError):
+            pass
+
     def _style(self) -> None:
         st = ttk.Style(self.root)
         if "vista" in st.theme_names():
@@ -169,17 +181,15 @@ class App:
         paths += [p for p in self.cfg.custom_roots if os.path.isdir(p)]
         paths += [os.path.abspath(p) for p in (override or [])]
         chosen = {system.norm(p) for p in (override or self.cfg.roots)}
-        dest = self.dest_var.get().strip()
         seen = set()
         for p in paths:
             n = system.norm(p)
             if n in seen:
                 continue
             seen.add(n)
-            if chosen:
-                on = n in chosen
-            else:   # first run: every local drive except cloud drives and the destination's drive
-                on = n not in cloud and not (dest and system.is_inside(dest, p))
+            # first run: every local drive except cloud drives (the destination folder itself is
+            # always excluded from scanning, so its drive can stay ticked)
+            on = n in chosen if chosen else n not in cloud
             self._add_root_widget(p, labels.get(n, p), on)
 
     def _add_root_widget(self, path: str, text: str, on: bool) -> None:
@@ -583,6 +593,13 @@ class App:
 def run(cfg: Config, config_path: Optional[str] = None, roots: Optional[Sequence[str]] = None,
         dest: Optional[str] = None, autoscan: bool = False) -> App:
     app = App(cfg, config_path, roots, dest, autoscan)
+    probe = os.environ.get("DUSTY_SELFTEST")
+    if probe:   # used by the release build: prove the packaged exe can open its window
+        def done():
+            with open(probe, "w", encoding="utf-8") as f:
+                f.write(f"ok {app.root.title()}\n")
+            app.root.destroy()
+        app.root.after(1500, done)
     app.root.mainloop()
     return app
 

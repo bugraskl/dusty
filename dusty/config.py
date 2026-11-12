@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from dataclasses import asdict, dataclass, field, fields
 from typing import List
 
@@ -78,15 +79,35 @@ class Config:
     code_extensions: List[str] = field(default_factory=lambda: list(DEFAULT_CODE_EXTENSIONS))
 
 
+PORTABLE_NAME = "dusty-config.json"
+
+
 def default_path() -> str:
     env = os.environ.get("DUSTY_CONFIG")
     if env:
         return env
+    if getattr(sys, "frozen", False):
+        # Portable exe: settings live next to dusty.exe, so they travel with it (USB stick,
+        # Downloads…). Falls back to the user profile only if that folder is not writable.
+        portable = os.path.join(os.path.dirname(sys.executable), PORTABLE_NAME)
+        if os.path.exists(portable) or _writable(os.path.dirname(portable)):
+            return portable
     if os.name == "nt":
         base = os.environ.get("APPDATA") or os.path.expanduser("~")
     else:
         base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
     return os.path.join(base, "dusty", "config.json")
+
+
+def _writable(folder: str) -> bool:
+    probe = os.path.join(folder, f".dusty-write-test-{os.getpid()}")
+    try:
+        with open(probe, "w"):
+            pass
+        os.remove(probe)
+        return True
+    except OSError:
+        return False
 
 
 def load(path: str | None = None) -> Config:

@@ -136,9 +136,24 @@ def list_drives() -> List[Drive]:
 
 
 def cloud_folders() -> List[str]:
-    """Folders of sync clients found on this machine (Google Drive, OneDrive, Dropbox, iCloud…)."""
+    """Folders of sync clients found on this machine (Google Drive, OneDrive, Dropbox, iCloud…).
+
+    Streaming drives come first: they keep files in the cloud, while OneDrive/Dropbox folders
+    usually keep a full local copy, which would not free any space on the same disk.
+    """
     found: List[str] = []
     home = os.path.expanduser("~")
+    if IS_WIN:
+        # Google Drive for desktop mounts a virtual drive (label "Google Drive") whose first folder
+        # is "My Drive" in the user's language (Drive'ım, Meine Ablage, Mi unidad…).
+        try:
+            for root, _ in _letters():
+                if "google drive" in _volume_label(root).lower():
+                    for e in os.scandir(root):
+                        if e.is_dir() and not e.name.startswith((".", "$")):
+                            found.append(e.path)
+        except OSError:
+            pass
     for env in ("OneDrive", "OneDriveConsumer", "OneDriveCommercial"):
         v = os.environ.get(env)
         if v:
@@ -151,17 +166,6 @@ def cloud_folders() -> List[str]:
         found += [e.path for e in os.scandir(cs) if e.is_dir()]
     except OSError:
         pass
-    if IS_WIN:
-        # Google Drive for desktop mounts a virtual drive (label "Google Drive") whose first folder
-        # is "My Drive" in the user's language (Drive'ım, Meine Ablage, Mi unidad…).
-        try:
-            for root, _ in _letters():
-                if "google drive" in _volume_label(root).lower():
-                    for e in os.scandir(root):
-                        if e.is_dir() and not e.name.startswith((".", "$")):
-                            found.append(e.path)
-        except OSError:
-            pass
     out, seen = [], set()
     for f in found:
         if os.path.isdir(f) and norm(f) not in seen:

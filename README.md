@@ -1,15 +1,34 @@
-# dusty
+<p align="center">
+  <img src="dusty/assets/dusty.png" width="96" alt="dusty icon">
+</p>
 
-**Find what has been gathering dust on your disks, back it up to cloud storage, free up space.**
+<h1 align="center">dusty</h1>
 
-dusty scans your drives for folders and files you have not touched in a long time. You tick the
-ones you want gone, and it copies them to a backup folder, which can be Google Drive, OneDrive,
-Dropbox, a NAS or a USB disk. It checks the copy and only then deletes the original.
+<p align="center">
+  <b>Free up disk space without losing anything.</b><br>
+  Find the folders and files you haven't touched in a year, move them to Google Drive, OneDrive or
+  any backup folder, verify the copy, and only then delete the originals.
+</p>
 
-![dusty window](docs/screenshot.png)
+<p align="center">
+  <a href="https://github.com/bugraskl/dusty/releases/latest/download/dusty.exe"><b>⬇ Download dusty.exe</b></a>
+  &nbsp;·&nbsp; Windows 10/11 &nbsp;·&nbsp; portable, no installer &nbsp;·&nbsp; 12 MB
+</p>
 
-[![CI](https://github.com/bugraskl/dusty/actions/workflows/ci.yml/badge.svg)](https://github.com/bugraskl/dusty/actions/workflows/ci.yml)
-· Python 3.10+ · no dependencies · Windows first, works on Linux and macOS · [Türkçe ↓](#türkçe)
+<p align="center">
+  <a href="https://github.com/bugraskl/dusty/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/bugraskl/dusty?label=release"></a>
+  <a href="https://github.com/bugraskl/dusty/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/bugraskl/dusty/total"></a>
+  <a href="https://github.com/bugraskl/dusty/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/bugraskl/dusty/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/bugraskl/dusty"></a>
+  <a href="#türkçe"><img alt="Türkçe" src="https://img.shields.io/badge/dil-T%C3%BCrk%C3%A7e-red"></a>
+</p>
+
+![dusty window: old folders listed by size, ready to be backed up and deleted](docs/screenshot.png)
+
+**Who is it for?** Anyone whose `C:` or `D:` drive is full of old downloads, finished projects,
+raw videos, photo dumps and installers they don't want to lose, but don't need on the laptop.
+Disk-usage tools like WinDirStat, TreeSize or WizTree show you *what is big*. dusty also shows you
+*what is old*, and moves it to the cloud safely in one go.
 
 ## Features
 
@@ -40,7 +59,19 @@ Dropbox, a NAS or a USB disk. It checks the copy and only then deletes the origi
   iCloud and others as the destination.
 - **English and Turkish UI**, picked automatically from your system language.
 
-## Install
+## Download
+
+**Windows:** download **[dusty.exe](https://github.com/bugraskl/dusty/releases/latest/download/dusty.exe)**
+and double-click it. There is no installer, and you don't need Python or admin rights.
+
+- Settings are saved in `dusty-config.json` next to the exe, so you can run it from a USB stick
+  or any folder. Delete both files and nothing is left behind.
+- **"Windows protected your PC"?** The exe is not code-signed (certificates cost hundreds of
+  dollars a year), so SmartScreen warns about any new download. Click **More info → Run anyway**.
+  Each release exe is built by GitHub Actions straight from the tagged source, and its SHA-256 is
+  listed on the [release page](https://github.com/bugraskl/dusty/releases/latest).
+
+**Linux / macOS / Python users:**
 
 ```bash
 pip install git+https://github.com/bugraskl/dusty
@@ -185,6 +216,20 @@ pytest
 The tests create real folders, files, junctions or symlinks, read-only files and paths longer than
 260 characters in a temporary directory. CI runs them on Windows, Linux and macOS.
 
+Build the portable exe yourself:
+
+```bash
+pip install pyinstaller
+python packaging/build_exe.py      # → dist/dusty.exe
+```
+
+Use a python.org (or `uv`) Python for this. Conda's Python does not bundle Tk correctly. Pushing a
+tag such as `v1.2.0` makes GitHub Actions test, build, smoke-test and publish the exe on the
+Releases page.
+
+Issues and pull requests are welcome, especially translations: add a dict to
+[`dusty/i18n.py`](dusty/i18n.py).
+
 ## License
 
 [MIT](LICENSE)
@@ -197,8 +242,12 @@ The tests create real folders, files, junctions or symlinks, read-only files and
 Google Drive, OneDrive, NAS ya da harici diske kopyalar, kopyayı doğrular ve ancak ondan sonra
 orijinali siler.
 
-- **Kurulum:** `pip install git+https://github.com/bugraskl/dusty`, ardından `dusty-gui`. Kurmadan
-  denemek için: `python -m dusty`.
+- **İndir ve çalıştır:** **[dusty.exe](https://github.com/bugraskl/dusty/releases/latest/download/dusty.exe)**
+  dosyasını indirip çift tıklayın. Kurulum, Python ya da yönetici izni gerekmez. Ayarlar exe'nin
+  yanındaki `dusty-config.json` dosyasına yazılır, yani USB bellekten de çalışır. Windows
+  "Bilgisayarınız korundu" derse **Ek bilgi → Yine de çalıştır**'a tıklayın: exe kod imzalı
+  değil, ama GitHub Actions tarafından doğrudan kaynak koddan derleniyor.
+- **Python ile:** `pip install git+https://github.com/bugraskl/dusty`, ardından `dusty-gui`.
 - **Arayüz dili** sistem dilinden seçilir (Türkçe/İngilizce). İsterseniz *Ayarlar…* içinden
   değiştirebilirsiniz.
 - **Tarama** hiçbir şeyi değiştirmez. Eşikleri (gün / MB) değiştirdiğinizde liste anında güncellenir.

@@ -41,6 +41,9 @@ dusty-gui = "dusty.gui:main"
 [tool.setuptools]
 packages = ["dusty"]
 
+[tool.setuptools.package-data]
+dusty = ["assets/*"]
+
 [tool.setuptools.dynamic]
 version = { attr = "dusty.__version__" }
 
