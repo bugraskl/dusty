@@ -7,7 +7,7 @@ name = "dusty"
 dynamic = ["version"]
 description = "Find what has been gathering dust on your disks, back it up to cloud storage, free up space."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "bugraskl" }]
 keywords = ["disk cleanup", "backup", "google drive", "onedrive", "free space", "tkinter"]

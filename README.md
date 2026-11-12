@@ -9,7 +9,7 @@ Dropbox, a NAS or a USB disk. It checks the copy and only then deletes the origi
 ![dusty window](docs/screenshot.png)
 
 [![CI](https://github.com/bugraskl/dusty/actions/workflows/ci.yml/badge.svg)](https://github.com/bugraskl/dusty/actions/workflows/ci.yml)
-· Python 3.9+ · no dependencies · Windows first, works on Linux and macOS · [Türkçe ↓](#türkçe)
+· Python 3.10+ · no dependencies · Windows first, works on Linux and macOS · [Türkçe ↓](#türkçe)
 
 ## Features
 
